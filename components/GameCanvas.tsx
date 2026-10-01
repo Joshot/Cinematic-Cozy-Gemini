@@ -32,10 +32,10 @@ export function GameCanvas() {
 
   // Settings States
   const [graphics, setGraphics] = useState<GraphicsSettings>({
-    preset: 'high',
-    shadowQuality: 'high',
+    preset: 'cinematic',
+    shadowQuality: 'ultra',
     grassDensity: 1.0,
-    viewDistance: 240,
+    viewDistance: 400,
     antiAliasing: true,
     bloom: true,
     windStrength: 1.0,
@@ -67,10 +67,18 @@ export function GameCanvas() {
     });
     engineRef.current = engine;
 
+    // Bulletproof pointer lock cursor management — eliminates black circle bug
     const handlePointerLockChange = () => {
       const isLocked = document.pointerLockElement === canvasRef.current;
-      if (!isLocked && !isPhotoMode) {
-        setIsMenuOpen(true);
+      if (isLocked) {
+        document.body.classList.add('pointer-locked');
+        canvasRef.current?.classList.add('cursor-hidden');
+      } else {
+        document.body.classList.remove('pointer-locked');
+        canvasRef.current?.classList.remove('cursor-hidden');
+        if (!isPhotoMode) {
+          setIsMenuOpen(true);
+        }
       }
     };
 
@@ -91,6 +99,7 @@ export function GameCanvas() {
     return () => {
       document.removeEventListener('pointerlockchange', handlePointerLockChange);
       document.removeEventListener('keydown', handleGlobalKey);
+      document.body.classList.remove('pointer-locked');
       engine.dispose();
       engineRef.current = null;
     };
@@ -149,13 +158,15 @@ export function GameCanvas() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden select-none bg-zinc-950 font-sans">
-      {/* 3D WebGL Canvas - Clean without crosshair or reticle */}
+      {/* 3D Canvas — NO crosshair, NO reticle, NO cursor indicators */}
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
+        tabIndex={-1}
         className={`w-full h-full block outline-none ${
-          isMenuOpen || isSettingsOpen || isCreditsOpen ? 'cursor-default' : 'cursor-none'
+          isMenuOpen || isSettingsOpen || isCreditsOpen ? 'cursor-default' : 'cursor-none cursor-hidden'
         }`}
+        style={{ cursor: isMenuOpen || isSettingsOpen || isCreditsOpen ? 'default' : 'none' }}
       />
 
       {/* In-Game Minimal Overlay (Hidden in Photo Mode or when Menu is open) */}

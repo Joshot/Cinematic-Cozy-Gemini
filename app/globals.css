@@ -9,7 +9,44 @@ html, body {
   -webkit-user-select: none;
 }
 
+/* Bulletproof cursor hiding during gameplay */
 canvas {
   outline: none !important;
   -webkit-tap-highlight-color: transparent;
+}
+
+canvas.cursor-hidden,
+.cursor-hidden canvas {
+  cursor: none !important;
+}
+
+/* When pointer is locked, hide ALL cursor indicators everywhere */
+body.pointer-locked,
+body.pointer-locked * {
+  cursor: none !important;
+}
+
+/* Prevent any accidental cursor rendering */
+body.pointer-locked canvas {
+  cursor: none !important;
+  pointer-events: auto;
+}
+
+/* Prevent default browser focus indicators that could appear as dots */
+*:focus {
+  outline: none !important;
+}
+
+/* Remove any possible browser-injected cursor overlays */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Ensure no cursor artifacts on fullscreen or pointer lock transitions */
+:-webkit-full-screen {
+  cursor: none !important;
+}
+
+:fullscreen {
+  cursor: none !important;
 }

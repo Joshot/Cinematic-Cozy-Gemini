@@ -42,57 +42,62 @@ export function createAnimals(
 
   const animalInstances: AnimalInstance[] = [];
 
-  // --- REALISTIC PBR MATERIALS ---
+  // --- CINEMATIC PBR MATERIALS ---
   const holsteinMat = new THREE.MeshStandardMaterial({
     map: getHolsteinCoatTexture(),
-    roughness: 0.68,
-    metalness: 0.02,
+    roughness: 0.72,
+    metalness: 0.01,
+    envMapIntensity: 0.3,
   });
 
   const jerseyMat = new THREE.MeshStandardMaterial({
     map: getJerseyCoatTexture(),
-    roughness: 0.68,
-    metalness: 0.02,
+    roughness: 0.72,
+    metalness: 0.01,
+    envMapIntensity: 0.3,
   });
 
   const muzzleMat = new THREE.MeshStandardMaterial({
-    color: 0xd9b3a3,
-    roughness: 0.72,
-    metalness: 0.04,
+    color: 0xd4a08a,
+    roughness: 0.82,
+    metalness: 0.02,
   });
 
   const hornMat = new THREE.MeshStandardMaterial({
     color: 0xdcd6cb,
-    roughness: 0.55,
+    roughness: 0.5,
     metalness: 0.08,
   });
 
   const eyeGlossMat = new THREE.MeshStandardMaterial({
-    color: 0x111111,
-    roughness: 0.1,
-    metalness: 0.3,
+    color: 0x0a0a0a,
+    roughness: 0.05,
+    metalness: 0.45,
+    envMapIntensity: 1.0,
   });
 
   const hoofMat = new THREE.MeshStandardMaterial({
-    color: 0x242220,
-    roughness: 0.5,
-    metalness: 0.1,
+    color: 0x1e1c1a,
+    roughness: 0.55,
+    metalness: 0.12,
   });
 
   const sheepWoolMat = new THREE.MeshStandardMaterial({
     map: getSheepWoolTexture(),
-    roughness: 0.88,
-    metalness: 0.02,
+    roughness: 0.92,
+    metalness: 0.01,
   });
 
   const sheepDarkFaceMat = new THREE.MeshStandardMaterial({
-    color: 0x302a24,
-    roughness: 0.78,
+    color: 0x2a2420,
+    roughness: 0.8,
+    metalness: 0.02,
   });
 
   const goatFurMat = new THREE.MeshStandardMaterial({
     color: 0xc8bda8,
-    roughness: 0.8,
+    roughness: 0.82,
+    metalness: 0.01,
   });
 
   const chickenFeatherMat = new THREE.MeshStandardMaterial({

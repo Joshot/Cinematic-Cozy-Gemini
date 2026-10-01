@@ -546,6 +546,154 @@ export function createArchitecture(
     canSit: true,
   });
 
+  // --- 8. FARM ENVIRONMENTAL DETAILS ---
+
+  // Water Troughs in animal areas
+  const troughGeom = new THREE.BoxGeometry(2.4, 0.6, 0.9);
+  const troughMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.7, metalness: 0.3 });
+  
+  const troughPositions = [
+    { x: 35, z: 45, rot: 0.3 },  // Cow meadow
+    { x: -55, z: -95, rot: 1.2 }, // Sheep area
+    { x: -62, z: 25, rot: -0.5 }, // Goat area
+  ];
+  
+  troughPositions.forEach((tp) => {
+    const trough = new THREE.Mesh(troughGeom, troughMat);
+    const ty = getHeight(tp.x, tp.z);
+    trough.position.set(tp.x, ty + 0.35, tp.z);
+    trough.rotation.y = tp.rot;
+    trough.castShadow = true;
+    trough.receiveShadow = true;
+    group.add(trough);
+    
+    // Water surface inside trough
+    const waterInTrough = new THREE.Mesh(
+      new THREE.BoxGeometry(2.2, 0.05, 0.7),
+      new THREE.MeshStandardMaterial({ color: 0x3a5a6a, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.85 })
+    );
+    waterInTrough.position.set(tp.x, ty + 0.55, tp.z);
+    waterInTrough.rotation.y = tp.rot;
+    group.add(waterInTrough);
+  });
+
+  // Wooden Crates near barn
+  const crateGeom = new THREE.BoxGeometry(0.8, 0.7, 0.8);
+  const crateMat = new THREE.MeshStandardMaterial({ color: 0x7a6550, roughness: 0.85 });
+  
+  const cratePositions = [
+    [barnX + 8, barnZ + 14],
+    [barnX + 9.2, barnZ + 14],
+    [barnX + 8.5, barnZ + 14.8],
+    [barnX + 8.8, barnZ + 14, 0.7], // stacked
+  ];
+  
+  cratePositions.forEach(([cx, cz, cy]) => {
+    const crate = new THREE.Mesh(crateGeom, crateMat);
+    const crateY = getHeight(cx, cz);
+    crate.position.set(cx, crateY + (cy || 0.35), cz);
+    crate.rotation.y = Math.random() * 0.3;
+    crate.castShadow = true;
+    group.add(crate);
+  });
+
+  // Firewood Stack near house (second location)
+  const fwGeom = new THREE.BoxGeometry(3.0, 1.5, 1.0);
+  const fwMesh = new THREE.Mesh(fwGeom, darkWoodMat);
+  fwMesh.position.set(houseX + 7.5, houseY + 0.85, houseZ - 3.5);
+  fwMesh.rotation.y = 0.15;
+  fwMesh.castShadow = true;
+  group.add(fwMesh);
+
+  // Tool rack (leaning against barn)
+  const toolRackGeom = new THREE.BoxGeometry(0.08, 2.2, 0.08);
+  const toolRackMat = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.9 });
+  
+  for (let t = 0; t < 3; t++) {
+    const tool = new THREE.Mesh(toolRackGeom, toolRackMat);
+    tool.position.set(barnX - 9.2, barnY + 1.1, barnZ + 10 + t * 0.5);
+    tool.rotation.z = 0.15;
+    tool.rotation.y = Math.random() * 0.2;
+    tool.castShadow = true;
+    group.add(tool);
+  }
+
+  // Flower garden along farmhouse front
+  const flowerBoxGeom = new THREE.BoxGeometry(3.5, 0.35, 0.8);
+  const flowerBoxMat = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.9 });
+  
+  [-4, 4].forEach((fx) => {
+    const flowerBox = new THREE.Mesh(flowerBoxGeom, flowerBoxMat);
+    flowerBox.position.set(houseX + fx, houseY + 0.2, houseZ + 10.5);
+    flowerBox.castShadow = true;
+    group.add(flowerBox);
+    
+    // Colorful flowers in box
+    const flowerColors = [0xcc3333, 0xee8822, 0xdd55aa, 0xffee44];
+    for (let f = 0; f < 8; f++) {
+      const flower = new THREE.Mesh(
+        new THREE.SphereGeometry(0.12, 4, 4),
+        new THREE.MeshStandardMaterial({ 
+          color: flowerColors[f % flowerColors.length], 
+          roughness: 0.5 
+        })
+      );
+      flower.position.set(
+        houseX + fx + (Math.random() - 0.5) * 2.8,
+        houseY + 0.55 + Math.random() * 0.15,
+        houseZ + 10.5 + (Math.random() - 0.5) * 0.4
+      );
+      group.add(flower);
+    }
+  });
+
+  // Stepping stones path from house to barn
+  const stoneGeom = new THREE.CylinderGeometry(0.45, 0.5, 0.08, 7);
+  const steppingStoneMat = new THREE.MeshStandardMaterial({ color: 0x7a756d, roughness: 0.9, metalness: 0.03 });
+  
+  for (let s = 0; s < 8; s++) {
+    const t = s / 8;
+    const sx = houseX + 6 + (barnX - houseX - 6) * t + (Math.random() - 0.5) * 0.5;
+    const sz = houseZ + 5 + (barnZ - houseZ - 5) * t + (Math.random() - 0.5) * 0.5;
+    const sy = getHeight(sx, sz);
+    const stone = new THREE.Mesh(stoneGeom, steppingStoneMat);
+    stone.position.set(sx, sy + 0.04, sz);
+    stone.rotation.y = Math.random() * Math.PI;
+    stone.receiveShadow = true;
+    group.add(stone);
+  }
+
+  // Fence post lanterns (decorative)
+  const lanternGeom = new THREE.BoxGeometry(0.2, 0.3, 0.2);
+  const lanternMat = new THREE.MeshStandardMaterial({ 
+    color: 0xffd488, 
+    roughness: 0.3, 
+    metalness: 0.4,
+    emissive: 0x442200,
+    emissiveIntensity: 0.3,
+  });
+  
+  // Place lanterns at some fence corners
+  [{ x: -2, z: 22 }, { x: 48, z: 22 }, { x: -25, z: -20 }].forEach((lp) => {
+    const lantern = new THREE.Mesh(lanternGeom, lanternMat);
+    const ly = getHeight(lp.x, lp.z);
+    lantern.position.set(lp.x, ly + 1.8, lp.z);
+    lantern.castShadow = true;
+    group.add(lantern);
+  });
+
+  // Buckets scattered around farm
+  const bucketGeom = new THREE.CylinderGeometry(0.2, 0.25, 0.35, 8);
+  const bucketMat = new THREE.MeshStandardMaterial({ color: 0x6a6a6a, roughness: 0.6, metalness: 0.4 });
+  
+  [{ x: -5, z: 8 }, { x: 30, z: 20 }, { x: -58, z: 20 }].forEach((bp) => {
+    const bucket = new THREE.Mesh(bucketGeom, bucketMat);
+    const by = getHeight(bp.x, bp.z);
+    bucket.position.set(bp.x, by + 0.18, bp.z);
+    bucket.castShadow = true;
+    group.add(bucket);
+  });
+
   const toggleGate = (id: string): boolean => {
     const entry = gateMeshes.get(id);
     if (!entry) return false;

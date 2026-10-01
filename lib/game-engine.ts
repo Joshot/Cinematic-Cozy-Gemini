@@ -60,12 +60,12 @@ export class GameEngine {
   private currentBobOffset = new THREE.Vector3();
   private eyeHeight = 1.72;
 
-  // Graphics Settings
+  // Graphics Settings — DEFAULT TO CINEMATIC
   private settings: GraphicsSettings = {
-    preset: 'high',
-    shadowQuality: 'high',
+    preset: 'cinematic',
+    shadowQuality: 'ultra',
     grassDensity: 1.0,
-    viewDistance: 280,
+    viewDistance: 400,
     antiAliasing: true,
     bloom: true,
     windStrength: 1.0,
@@ -107,6 +107,11 @@ export class GameEngine {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Set initial cinematic quality
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+    this.camera.far = 400;
+    this.camera.updateProjectionMatrix();
 
     // Initialize Subsystems
     this.terrain = createTerrain(this.scene);
@@ -247,7 +252,9 @@ export class GameEngine {
             ? 1024
             : this.settings.shadowQuality === 'medium'
             ? 2048
-            : 4096;
+            : this.settings.shadowQuality === 'ultra'
+            ? 4096
+            : 4096; // high also gets 4096
         this.skyWeather.dirLight.shadow.mapSize.set(res, res);
         this.skyWeather.dirLight.shadow.map?.dispose();
         this.skyWeather.dirLight.shadow.map = null;
