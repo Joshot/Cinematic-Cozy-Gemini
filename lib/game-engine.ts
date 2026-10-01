@@ -5,13 +5,16 @@ import {
   TimeOfDayPreset,
   WeatherPreset,
 } from './types';
-import { soundscape } from './audio-engine';
+import { soundscape, FootstepSurface } from './audio-engine';
 import { createTerrain, TerrainSystem } from './terrain';
 import { createVegetation, VegetationSystem } from './vegetation';
-import { createArchitecture, ArchitectureSystem } from './architecture';
+import { createArchitecture, ArchitectureSystem, WalkableSurface } from './architecture';
 import { createSkyAndWeather, SkyWeatherSystem } from './sky-weather';
 import { createAnimals, AnimalSystem } from './animals';
-
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 export interface GameEngineOptions {
   canvas: HTMLCanvasElement;
   onInteractionChange?: (target: InteractionTarget | null) => void;
@@ -22,7 +25,8 @@ export class GameEngine {
   public scene: THREE.Scene;
   public camera: THREE.PerspectiveCamera;
   public renderer: THREE.WebGLRenderer;
-
+  private composer: EffectComposer;
+  private bloomPass: UnrealBloomPass;
   private canvas: HTMLCanvasElement;
   private animationFrameId: number | null = null;
   private clock: THREE.Clock;
@@ -101,17 +105,34 @@ export class GameEngine {
       depth: true,
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.02; // Natural crisp daylight exposure
+    this.renderer.toneMappingExposure = 0.90; // Natural daylight exposure, no blown-out white areas
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     // Set initial cinematic quality
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
-    this.camera.far = 400;
+    this.camera.far = 480;
     this.camera.updateProjectionMatrix();
+
+    // Post-Processing Pipeline (Cinematic Shaders)
+    const renderScene = new RenderPass(this.scene, this.camera);
+    
+    // Resolution, strength, radius, threshold
+    this.bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.24, // subtle cinematic glow
+      0.4,  // radius
+      0.88  // threshold (protects house walls and grass from blown-out glow)
+    );
+    
+    const outputPass = new OutputPass();
+
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(renderScene);
+    this.composer.addPass(this.bloomPass);
+    this.composer.addPass(outputPass);
 
     // Initialize Subsystems
     this.terrain = createTerrain(this.scene);
@@ -160,6 +181,7 @@ export class GameEngine {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
+    this.composer.setSize(width, height);
   };
 
   private onMouseMove = (e: MouseEvent) => {
@@ -329,19 +351,95 @@ export class GameEngine {
       this.playerVel.z *= Math.max(0, 1 - delta * 12);
     }
 
-    // Apply movement
-    const nextX = this.playerPos.x + this.playerVel.x * delta;
-    const nextZ = this.playerPos.z + this.playerVel.z * delta;
+    // --- PHYSICAL COLLISION DETECTION & WALL-SLIDING ---
+    const playerRadius = 0.42;
+    const playerFootY = this.playerPos.y - this.eyeHeight;
+    const playerTopY = this.playerPos.y + 0.15;
 
-    // Expanded world boundary clamp (up to 190m in each direction)
+    // Helper to test if a 2D position collides with any solid obstacle
+    const isColliding = (px: number, pz: number): boolean => {
+      // 1. Architecture colliders (walls, fences, barn, props, railings)
+      for (const c of this.architecture.colliders) {
+        if (c.isGate && this.architecture.isGateOpen(c.gateId!)) continue;
+
+        const cMinY = c.minY ?? -999;
+        const cMaxY = c.maxY ?? 999;
+        // Check vertical overlap
+        if (playerTopY < cMinY || playerFootY > cMaxY) continue;
+
+        // Check horizontal box collision with player radius
+        if (
+          px + playerRadius > c.minX &&
+          px - playerRadius < c.maxX &&
+          pz + playerRadius > c.minZ &&
+          pz - playerRadius < c.maxZ
+        ) {
+          return true;
+        }
+      }
+
+      // 2. Tree trunks and large rocks
+      for (const tc of this.vegetation.treeColliders) {
+        const dx = px - tc.x;
+        const dz = pz - tc.z;
+        const minDist = tc.radius + playerRadius;
+        if (dx * dx + dz * dz < minDist * minDist) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    // Decoupled X and Z movement for butter-smooth wall-sliding
     const bound = 190;
-    this.playerPos.x = Math.max(-bound, Math.min(bound, nextX));
-    this.playerPos.z = Math.max(-bound, Math.min(bound, nextZ));
+    const targetNextX = Math.max(-bound, Math.min(bound, this.playerPos.x + this.playerVel.x * delta));
+    if (!isColliding(targetNextX, this.playerPos.z)) {
+      this.playerPos.x = targetNextX;
+    } else {
+      this.playerVel.x = 0;
+    }
 
-    // Follow terrain elevation smoothly
-    const groundY = this.terrain.getHeight(this.playerPos.x, this.playerPos.z);
-    const targetY = groundY + this.eyeHeight;
-    this.playerPos.y = THREE.MathUtils.lerp(this.playerPos.y, targetY, 0.18);
+    const targetNextZ = Math.max(-bound, Math.min(bound, this.playerPos.z + this.playerVel.z * delta));
+    if (!isColliding(this.playerPos.x, targetNextZ)) {
+      this.playerPos.z = targetNextZ;
+    } else {
+      this.playerVel.z = 0;
+    }
+
+    // --- WALKABLE SURFACE ELEVATION (GROUND, PORCH, STEPS, BALCONY) ---
+    const currentFootY = this.playerPos.y - this.eyeHeight;
+    let targetGroundY = this.terrain.getHeight(this.playerPos.x, this.playerPos.z);
+    let activeFootstepSurface: FootstepSurface = this.terrain.getSurface(this.playerPos.x, this.playerPos.z);
+
+    // Check elevated walkable surfaces (porch, steps, stairs, balcony, interior floor)
+    let bestWalkableY = -999;
+    let foundSurface: WalkableSurface | null = null;
+    for (const ws of this.architecture.walkableSurfaces) {
+      if (
+        this.playerPos.x >= ws.minX &&
+        this.playerPos.x <= ws.maxX &&
+        this.playerPos.z >= ws.minZ &&
+        this.playerPos.z <= ws.maxZ
+      ) {
+        // Can step up up to 0.48m or drop down up to 2.8m
+        if (ws.y <= currentFootY + 0.48 && ws.y >= currentFootY - 2.8) {
+          if (ws.y > bestWalkableY) {
+            bestWalkableY = ws.y;
+            foundSurface = ws;
+          }
+        }
+      }
+    }
+
+    if (foundSurface && bestWalkableY > -900) {
+      targetGroundY = bestWalkableY;
+      activeFootstepSurface = foundSurface.surfaceType as FootstepSurface;
+    }
+
+    // Smoothly step/climb up and down
+    const targetEyeY = targetGroundY + this.eyeHeight;
+    this.playerPos.y = THREE.MathUtils.lerp(this.playerPos.y, targetEyeY, 0.28);
 
     // Footsteps & Distance
     const currentSpeed = Math.hypot(this.playerVel.x, this.playerVel.z);
@@ -353,8 +451,7 @@ export class GameEngine {
       const stepInterval = isShift ? 1.4 : 1.85;
       if (this.footstepAccumulator >= stepInterval) {
         this.footstepAccumulator = 0;
-        const surf = this.terrain.getSurface(this.playerPos.x, this.playerPos.z);
-        soundscape.playFootstep(surf, isShift);
+        soundscape.playFootstep(activeFootstepSurface, isShift);
       }
     }
 
@@ -431,12 +528,16 @@ export class GameEngine {
     this.updateMovement(delta);
     this.terrain.updateWater(elapsed);
     this.vegetation.update(elapsed, this.settings.windStrength);
-    this.skyWeather.update(delta);
+    this.skyWeather.update(delta, this.camera.position);
     this.animals.update(delta, this.playerPos);
     this.updateInteractions();
     this.updateAudioListener();
 
-    this.renderer.render(this.scene, this.camera);
+    if (this.settings.bloom) {
+      this.composer.render();
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
   };
 
   public getPlayerPosition(): THREE.Vector3 {
@@ -471,6 +572,7 @@ export class GameEngine {
     this.skyWeather.dispose();
     this.animals.dispose();
     this.renderer.dispose();
+    this.composer.dispose();
     soundscape.dispose();
   }
 }

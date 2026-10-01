@@ -8,7 +8,7 @@ export interface SkyWeatherSystem {
   ambientLight: THREE.AmbientLight;
   setTimeOfDay: (time: TimeOfDayPreset) => void;
   setWeather: (weather: WeatherPreset) => void;
-  update: (delta: number) => void;
+  update: (delta: number, cameraPos?: THREE.Vector3) => void;
   dispose: () => void;
 }
 
@@ -16,51 +16,51 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
   const group = new THREE.Group();
   scene.add(group);
 
-  // --- CINEMATIC DIRECTIONAL SUNLIGHT ---
-  const dirLight = new THREE.DirectionalLight(0xfffaed, 3.2);
-  dirLight.position.set(80, 85, 60);
+  // --- BALANCED NATURAL SUNLIGHT (NO OVEREXPOSURE) ---
+  const dirLight = new THREE.DirectionalLight(0xfffaed, 1.85);
+  dirLight.position.set(70, 75, 55);
   dirLight.castShadow = true;
 
-  // Maximum quality shadow setup
+  // Maximum quality shadow setup with safe bounds
   dirLight.shadow.mapSize.width = 4096;
   dirLight.shadow.mapSize.height = 4096;
   dirLight.shadow.camera.near = 1.0;
-  dirLight.shadow.camera.far = 350;
-  dirLight.shadow.camera.left = -140;
-  dirLight.shadow.camera.right = 140;
-  dirLight.shadow.camera.top = 140;
-  dirLight.shadow.camera.bottom = -140;
-  dirLight.shadow.bias = -0.00025;
+  dirLight.shadow.camera.far = 280;
+  dirLight.shadow.camera.left = -120;
+  dirLight.shadow.camera.right = 120;
+  dirLight.shadow.camera.top = 120;
+  dirLight.shadow.camera.bottom = -120;
+  dirLight.shadow.bias = -0.00015;
   dirLight.shadow.normalBias = 0.02;
-  dirLight.shadow.radius = 3.2; // Soft natural shadow edges
+  dirLight.shadow.radius = 2.4;
   group.add(dirLight);
 
-  // Secondary fill light (subtle warm bounce from ground)
-  const fillLight = new THREE.DirectionalLight(0xffe8c4, 0.35);
+  // Secondary fill light (soft warm meadow bounce)
+  const fillLight = new THREE.DirectionalLight(0xffe8c4, 0.22);
   fillLight.position.set(-40, 20, -30);
   fillLight.castShadow = false;
   group.add(fillLight);
 
-  // Hemisphere Light (sky light to meadow bounce)
-  const hemiLight = new THREE.HemisphereLight(0xa5cbf5, 0x4e613b, 0.95);
+  // Hemisphere Light (sky light to grass bounce)
+  const hemiLight = new THREE.HemisphereLight(0xa5cbf5, 0x4e613b, 0.55);
   group.add(hemiLight);
 
-  // Ambient Light for soft shadow lift
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.38);
+  // Ambient Light for soft, visible shadows
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
   group.add(ambientLight);
 
-  // Atmospheric distance haze
-  scene.fog = new THREE.FogExp2(0xdfe8ee, 0.0032);
+  // Atmospheric distance haze (crisp natural visibility)
+  scene.fog = new THREE.FogExp2(0xcfe2ea, 0.0022);
 
   // --- CINEMATIC PROCEDURAL ATMOSPHERIC SKY SHADER ---
-  // Physically-based Rayleigh scattering + Mie corona + FBM cumulus clouds + stars
-  const skyGeom = new THREE.SphereGeometry(420, 64, 48);
+  // Sphere geometry comfortably inside camera far plane (320m vs 480m)
+  const skyGeom = new THREE.SphereGeometry(320, 48, 32);
   const skyUniforms = {
     uTime: { value: 0 },
     uTopColor: { value: new THREE.Color(0x275fa5) },
     uBottomColor: { value: new THREE.Color(0xdce7ef) },
     uSunColor: { value: new THREE.Color(0xfff6e6) },
-    uSunDir: { value: new THREE.Vector3(80, 85, 60).normalize() },
+    uSunDir: { value: new THREE.Vector3(70, 75, 55).normalize() },
     uExponent: { value: 0.58 },
     uSunIntensity: { value: 1.0 },
     uCloudCoverage: { value: 0.5 },
@@ -68,14 +68,16 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
     uHorizonHaze: { value: 0.3 },
   };
 
+  // Safe background color fallback (never black!)
+  scene.background = skyUniforms.uBottomColor.value.clone();
+
   const skyMat = new THREE.ShaderMaterial({
     uniforms: skyUniforms,
     vertexShader: `
       varying vec3 vWorldPosition;
       varying vec3 vPosition;
       void main() {
-        vec4 worldPos = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPos.xyz;
+        vWorldPosition = position;
         vPosition = position;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
@@ -145,7 +147,7 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
           
           // Solar disc with limb darkening
           float sunDisc = smoothstep(0.9992, 0.9998, cosAngle);
-          float limbDarkening = 1.0 - pow(1.0 - smoothstep(0.9992, 0.9998, cosAngle), 0.3) * 0.2;
+          float limbDarkening = 1.0 - pow(clamp(1.0 - sunDisc, 0.0, 1.0), 0.3) * 0.2;
           
           // Mie forward-scattering corona (multiple rings)
           float mie1 = pow(max(cosAngle, 0.0), 48.0) * 0.85;
@@ -206,9 +208,12 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
       }
     `,
     side: THREE.BackSide,
+    depthWrite: false,
+    depthTest: false,
   });
 
   const skyMesh = new THREE.Mesh(skyGeom, skyMat);
+  skyMesh.renderOrder = -1000;
   group.add(skyMesh);
 
   // --- NIGHT STARFIELD (backup for non-shader stars) ---
@@ -319,17 +324,17 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
     let hemiGnd = new THREE.Color(0x4e613b);
     let fillCol = new THREE.Color(0xffe8c4);
 
-    let sunIntensity = 3.2;
-    let hemiIntensity = 0.95;
-    let fillIntensity = 0.35;
-    let ambIntensity = 0.38;
-    let sunPos = new THREE.Vector3(75, 80, 55);
+    let sunIntensity = 1.85;
+    let hemiIntensity = 0.55;
+    let fillIntensity = 0.22;
+    let ambIntensity = 0.2;
+    let sunPos = new THREE.Vector3(70, 75, 55);
     let isNight = 0.0;
     let starAlpha = 0;
     let fireflyAlpha = 0;
     let dustAlpha = 0.35;
     let cloudCoverage = 0.5;
-    let horizonHaze = 0.3;
+    let horizonHaze = 0.25;
 
     switch (tod) {
       case 'morning':
@@ -340,13 +345,13 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
         fillCol = new THREE.Color(0xffd4a0);
         hemiSky = new THREE.Color(0xa8c8ec);
         hemiGnd = new THREE.Color(0x566042);
-        sunIntensity = 2.8;
-        hemiIntensity = 0.85;
-        fillIntensity = 0.3;
-        ambIntensity = 0.42;
+        sunIntensity = 1.7;
+        hemiIntensity = 0.5;
+        fillIntensity = 0.2;
+        ambIntensity = 0.22;
         sunPos.set(95, 35, 40);
         cloudCoverage = 0.55;
-        horizonHaze = 0.5; // Morning mist
+        horizonHaze = 0.4; // Morning mist
         dustAlpha = 0.45;
         break;
 
@@ -358,10 +363,10 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
         fillCol = new THREE.Color(0xfff0d8);
         hemiSky = new THREE.Color(0xa4c6ee);
         hemiGnd = new THREE.Color(0x4e623a);
-        sunIntensity = 3.6;
-        hemiIntensity = 1.0;
-        fillIntensity = 0.25;
-        ambIntensity = 0.35;
+        sunIntensity = 2.0;
+        hemiIntensity = 0.6;
+        fillIntensity = 0.18;
+        ambIntensity = 0.18;
         sunPos.set(20, 115, 20);
         cloudCoverage = 0.42;
         horizonHaze = 0.2;
@@ -376,13 +381,13 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
         fillCol = new THREE.Color(0xffe8c4);
         hemiSky = new THREE.Color(0x9fc3ec);
         hemiGnd = new THREE.Color(0x4d5e38);
-        sunIntensity = 3.2;
-        hemiIntensity = 0.95;
-        fillIntensity = 0.35;
-        ambIntensity = 0.38;
+        sunIntensity = 1.85;
+        hemiIntensity = 0.55;
+        fillIntensity = 0.22;
+        ambIntensity = 0.2;
         sunPos.set(70, 72, 60);
         cloudCoverage = 0.5;
-        horizonHaze = 0.3;
+        horizonHaze = 0.25;
         dustAlpha = 0.35;
         break;
 
@@ -394,14 +399,14 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
         fillCol = new THREE.Color(0xff9955);
         hemiSky = new THREE.Color(0xb05e62);
         hemiGnd = new THREE.Color(0x4a372c);
-        sunIntensity = 2.4;
-        hemiIntensity = 0.75;
-        fillIntensity = 0.45;
-        ambIntensity = 0.3;
+        sunIntensity = 1.4;
+        hemiIntensity = 0.45;
+        fillIntensity = 0.25;
+        ambIntensity = 0.16;
         sunPos.set(115, 12, 25);
         fireflyAlpha = 0.6;
         cloudCoverage = 0.6;
-        horizonHaze = 0.55;
+        horizonHaze = 0.45;
         dustAlpha = 0.5;
         break;
 
@@ -414,10 +419,10 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
         fillCol = new THREE.Color(0x6688aa);
         hemiSky = new THREE.Color(0x15203a);
         hemiGnd = new THREE.Color(0x0c1215);
-        sunIntensity = 0.6;
-        hemiIntensity = 0.48;
-        fillIntensity = 0.15;
-        ambIntensity = 0.22;
+        sunIntensity = 0.35;
+        hemiIntensity = 0.25;
+        fillIntensity = 0.1;
+        ambIntensity = 0.12;
         sunPos.set(-60, 75, -50);
         starAlpha = 0.95;
         fireflyAlpha = 0.9;
@@ -464,6 +469,7 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
     if (scene.fog) {
       scene.fog.color.copy(fogCol);
     }
+    scene.background = fogCol.clone();
 
     dirLight.color.copy(sunCol);
     dirLight.intensity = sunIntensity;
@@ -497,9 +503,17 @@ export function createSkyAndWeather(scene: THREE.Scene): SkyWeatherSystem {
   applyLighting(currentTimeOfDay, currentWeather);
 
   let totalTime = 0;
-  const update = (delta: number) => {
+  const update = (delta: number, cameraPos?: THREE.Vector3) => {
     totalTime += delta;
     skyUniforms.uTime.value = totalTime;
+
+    // Follow camera position so sky and particles never clip or shift
+    if (cameraPos) {
+      skyMesh.position.copy(cameraPos);
+      starPoints.position.copy(cameraPos);
+      dustPoints.position.copy(cameraPos);
+      rainPoints.position.set(cameraPos.x, cameraPos.y - 15, cameraPos.z);
+    }
 
     // Rain particles fall
     if (currentWeather === 'gentleRain') {

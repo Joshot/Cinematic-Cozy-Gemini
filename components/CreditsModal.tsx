@@ -32,21 +32,29 @@ export function CreditsModal({ isOpen, onClose }: CreditsModalProps) {
             Designed as a peaceful sanctuary where you can escape daily noise, slow down, and walk through an authentic countryside farm.
           </p>
           <div className="space-y-2 pt-2">
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Core Experience</span>
-              <span className="text-zinc-200">Slow-Paced Nature Exploration</span>
+            <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
+              <span className="text-zinc-400">Game Direction & Concept</span>
+              <span className="text-amber-200 font-medium">Kancil Berlari</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Visual Engine</span>
-              <span className="text-zinc-200">Physically Based WebGL Rendering</span>
+            <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
+              <span className="text-zinc-400">Lead 3D Art & Shaders</span>
+              <span className="text-amber-200 font-medium">Kancil Berlari</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Acoustic Design</span>
-              <span className="text-zinc-200">Procedural 3D Spatial Audio Synthesis</span>
+            <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
+              <span className="text-zinc-400">World Generation & Architecture</span>
+              <span className="text-amber-200 font-medium">Kancil Berlari</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Animal AI</span>
-              <span className="text-zinc-200">Autonomous Organic State Machine</span>
+            <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
+              <span className="text-zinc-400">Music & Acoustic Design</span>
+              <span className="text-amber-200 font-medium">Kancil Berlari</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
+              <span className="text-zinc-400">Animal AI & Animation</span>
+              <span className="text-amber-200 font-medium">Kancil Berlari</span>
+            </div>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-zinc-400">Executive Producer & Coding</span>
+              <span className="text-amber-200 font-medium">Kancil Berlari</span>
             </div>
           </div>
         </div>

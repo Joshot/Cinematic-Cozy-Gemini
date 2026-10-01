@@ -25,13 +25,15 @@ class SoundscapeEngine {
 
   // Internal state
   private birdTimer: NodeJS.Timeout | null = null;
+  private musicTimer: NodeJS.Timeout | null = null;
+  private isMusicPlaying = false;
   private settings: AudioSettings = {
-    masterVolume: 0.8,
-    natureVolume: 0.75,
+    masterVolume: 0.85,
+    natureVolume: 0.8,
     footstepVolume: 0.65,
-    animalVolume: 0.7,
-    ambientMusicVolume: 0.25,
-    ambientMusicEnabled: false,
+    animalVolume: 0.75,
+    ambientMusicVolume: 0.22,
+    ambientMusicEnabled: true,
   };
 
   public init() {
@@ -75,6 +77,10 @@ class SoundscapeEngine {
       this.startContinuousWater();
       this.startContinuousRain();
       this.startBirdSchedule();
+
+      if (this.settings.ambientMusicEnabled) {
+        this.startAmbientMusic();
+      }
 
       this.isInitialized = true;
     } catch (err) {
@@ -137,47 +143,76 @@ class SoundscapeEngine {
 
   private startContinuousWind() {
     if (!this.ctx || !this.natureGain) return;
-    const noiseBuffer = this.createNoiseBuffer(6);
+    const noiseBuffer = this.createNoiseBuffer(8);
     if (!noiseBuffer) return;
 
+    // 1. Deep rolling countryside air pressure
     const noiseSource = this.ctx.createBufferSource();
     noiseSource.buffer = noiseBuffer;
     noiseSource.loop = true;
 
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(260, this.ctx.currentTime);
-    filter.Q.setValueAtTime(1.2, this.ctx.currentTime);
+    filter.frequency.setValueAtTime(320, this.ctx.currentTime);
+    filter.Q.setValueAtTime(1.4, this.ctx.currentTime);
     this.windFilter = filter;
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.28, this.ctx.currentTime);
+    gain.gain.setValueAtTime(0.42, this.ctx.currentTime);
     this.windGain = gain;
 
     noiseSource.connect(filter);
     filter.connect(gain);
     gain.connect(this.natureGain);
 
-    // Leaves / foliage rustle layer (higher bandpass)
+    // 2. Whispering leaves & foliage rustle layer ("angin sepoi-sepoi")
     const foliageSource = this.ctx.createBufferSource();
     foliageSource.buffer = noiseBuffer;
     foliageSource.loop = true;
 
     const foliageFilter = this.ctx.createBiquadFilter();
     foliageFilter.type = 'bandpass';
-    foliageFilter.frequency.setValueAtTime(1800, this.ctx.currentTime);
-    foliageFilter.Q.setValueAtTime(2.0, this.ctx.currentTime);
+    foliageFilter.frequency.setValueAtTime(2100, this.ctx.currentTime);
+    foliageFilter.Q.setValueAtTime(1.8, this.ctx.currentTime);
 
     const foliageGain = this.ctx.createGain();
-    foliageGain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+    foliageGain.gain.setValueAtTime(0.18, this.ctx.currentTime);
     this.foliageGain = foliageGain;
 
     foliageSource.connect(foliageFilter);
     foliageFilter.connect(foliageGain);
     foliageGain.connect(this.natureGain);
 
+    // 3. Gentle meadow grass insects / summer crickets ambience
+    const cricketSource = this.ctx.createBufferSource();
+    cricketSource.buffer = noiseBuffer;
+    cricketSource.loop = true;
+
+    const cricketFilter = this.ctx.createBiquadFilter();
+    cricketFilter.type = 'bandpass';
+    cricketFilter.frequency.setValueAtTime(5400, this.ctx.currentTime);
+    cricketFilter.Q.setValueAtTime(4.5, this.ctx.currentTime);
+
+    // Subtle rhythmic flutter for crickets
+    const cricketLfo = this.ctx.createOscillator();
+    cricketLfo.frequency.setValueAtTime(11, this.ctx.currentTime);
+    const cricketLfoGain = this.ctx.createGain();
+    cricketLfoGain.gain.setValueAtTime(0.015, this.ctx.currentTime);
+
+    const cricketGain = this.ctx.createGain();
+    cricketGain.gain.setValueAtTime(0.025, this.ctx.currentTime);
+
+    cricketLfo.connect(cricketLfoGain);
+    cricketLfoGain.connect(cricketGain.gain);
+
+    cricketSource.connect(cricketFilter);
+    cricketFilter.connect(cricketGain);
+    cricketGain.connect(this.natureGain);
+
     noiseSource.start();
     foliageSource.start();
+    cricketSource.start();
+    cricketLfo.start();
   }
 
   private startContinuousWater() {
@@ -240,9 +275,9 @@ class SoundscapeEngine {
     if (!this.ctx || !this.windFilter || !this.windGain || !this.foliageGain) return;
     const t = this.ctx.currentTime;
     const clamped = Math.max(0.1, Math.min(2.0, windIntensity));
-    const targetFreq = 220 + clamped * 320;
-    const targetWindGain = 0.18 + clamped * 0.22;
-    const targetFoliageGain = 0.03 + clamped * 0.09;
+    const targetFreq = 260 + clamped * 380;
+    const targetWindGain = 0.42 + clamped * 0.48;
+    const targetFoliageGain = 0.18 + clamped * 0.32;
 
     this.windFilter.frequency.setTargetAtTime(targetFreq, t, 0.2);
     this.windGain.gain.setTargetAtTime(targetWindGain, t, 0.2);
@@ -301,7 +336,35 @@ class SoundscapeEngine {
     const volScale = isSprinting ? 1.25 : 1.0;
 
     if (surface === 'grass') {
-      // Soft rustling brush step
+      // Soft organic grassy crunch + rustle
+      const noise = this.ctx.createBufferSource();
+      const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.22, this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        // Double exponential decay for a crisp start and soft tail
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.03)) * Math.exp(-i / (this.ctx.sampleRate * 0.08));
+      }
+      noise.buffer = buf;
+
+      const filter1 = this.ctx.createBiquadFilter();
+      filter1.type = 'highpass';
+      filter1.frequency.setValueAtTime(1200 * pitchVariation, t);
+      
+      const filter2 = this.ctx.createBiquadFilter();
+      filter2.type = 'lowpass';
+      filter2.frequency.setValueAtTime(4500, t);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.6 * volScale, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+      noise.connect(filter1);
+      filter1.connect(filter2);
+      filter2.connect(gain);
+      gain.connect(this.footstepGain);
+      noise.start(t);
+    } else if (surface === 'dirt') {
+      // Deep earthy crunch (removed the sharp oscillator thud)
       const noise = this.ctx.createBufferSource();
       const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.18, this.ctx.sampleRate);
       const data = buf.getChannelData(0);
@@ -310,55 +373,22 @@ class SoundscapeEngine {
       }
       noise.buffer = buf;
 
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(800 * pitchVariation, t);
-      filter.Q.setValueAtTime(1.5, t);
+      const filter1 = this.ctx.createBiquadFilter();
+      filter1.type = 'lowpass';
+      filter1.frequency.setValueAtTime(900 * pitchVariation, t);
+      
+      const filter2 = this.ctx.createBiquadFilter();
+      filter2.type = 'highpass';
+      filter2.frequency.setValueAtTime(150, t);
 
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.35 * volScale, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+      gain.gain.setValueAtTime(0.7 * volScale, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
 
-      noise.connect(filter);
-      filter.connect(gain);
+      noise.connect(filter1);
+      filter1.connect(filter2);
+      filter2.connect(gain);
       gain.connect(this.footstepGain);
-      noise.start(t);
-    } else if (surface === 'dirt') {
-      // Crisp earthy impact
-      const osc = this.ctx.createOscillator();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(110 * pitchVariation, t);
-      osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
-
-      const oscGain = this.ctx.createGain();
-      oscGain.gain.setValueAtTime(0.4 * volScale, t);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-      // Earthy grit noise
-      const noise = this.ctx.createBufferSource();
-      const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.12, this.ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < data.length; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.025));
-      }
-      noise.buffer = buf;
-
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1200 * pitchVariation, t);
-
-      const noiseGain = this.ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.22 * volScale, t);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-
-      osc.connect(oscGain);
-      oscGain.connect(this.footstepGain);
-      noise.connect(filter);
-      filter.connect(noiseGain);
-      noiseGain.connect(this.footstepGain);
-
-      osc.start(t);
-      osc.stop(t + 0.13);
       noise.start(t);
     } else if (surface === 'wood') {
       // Hollow porch floorboard thump
@@ -497,37 +527,57 @@ class SoundscapeEngine {
   public playCowMoo(x: number, y: number, z: number) {
     if (!this.ctx || !this.animalGain) return;
     const t = this.ctx.currentTime;
-    const panner = this.createPanner(x, y, z, 4, 50);
+    const panner = this.createPanner(x, y, z, 5, 75);
     if (!panner) return;
     panner.connect(this.animalGain);
 
+    // 1. Primary vocal tract oscillator
     const osc = this.ctx.createOscillator();
     osc.type = 'sawtooth';
 
-    const basePitch = 95 + Math.random() * 20;
+    const basePitch = 88 + Math.random() * 18;
     osc.frequency.setValueAtTime(basePitch, t);
-    osc.frequency.linearRampToValueAtTime(basePitch + 25, t + 0.4);
-    osc.frequency.linearRampToValueAtTime(basePitch - 15, t + 1.4);
+    osc.frequency.linearRampToValueAtTime(basePitch + 28, t + 0.35);
+    osc.frequency.linearRampToValueAtTime(basePitch + 12, t + 1.1);
+    osc.frequency.linearRampToValueAtTime(basePitch - 22, t + 1.8);
 
-    // Formant filter (warm bovine vowel)
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(450, t);
-    filter.frequency.linearRampToValueAtTime(320, t + 1.4);
-    filter.Q.setValueAtTime(4.0, t);
+    // 2. Deep chest sub-oscillator
+    const subOsc = this.ctx.createOscillator();
+    subOsc.type = 'triangle';
+    subOsc.frequency.setValueAtTime(basePitch * 0.5, t);
+    subOsc.frequency.linearRampToValueAtTime((basePitch + 28) * 0.5, t + 0.35);
+    subOsc.frequency.linearRampToValueAtTime((basePitch - 22) * 0.5, t + 1.8);
+
+    // Dual Formant Filters (simulating bovine throat and open muzzle "Moooo")
+    const formant1 = this.ctx.createBiquadFilter();
+    formant1.type = 'bandpass';
+    formant1.frequency.setValueAtTime(360, t);
+    formant1.frequency.linearRampToValueAtTime(290, t + 1.8);
+    formant1.Q.setValueAtTime(4.2, t);
+
+    const formant2 = this.ctx.createBiquadFilter();
+    formant2.type = 'bandpass';
+    formant2.frequency.setValueAtTime(820, t);
+    formant2.frequency.linearRampToValueAtTime(680, t + 1.8);
+    formant2.Q.setValueAtTime(3.5, t);
 
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.001, t);
-    gain.gain.linearRampToValueAtTime(0.32, t + 0.3);
-    gain.gain.linearRampToValueAtTime(0.24, t + 1.0);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 1.6);
+    gain.gain.linearRampToValueAtTime(0.38, t + 0.25);
+    gain.gain.linearRampToValueAtTime(0.32, t + 1.2);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 1.95);
 
-    osc.connect(filter);
-    filter.connect(gain);
+    osc.connect(formant1);
+    osc.connect(formant2);
+    subOsc.connect(formant1);
+    formant1.connect(gain);
+    formant2.connect(gain);
     gain.connect(panner);
 
     osc.start(t);
-    osc.stop(t + 1.65);
+    subOsc.start(t);
+    osc.stop(t + 2.0);
+    subOsc.stop(t + 2.0);
   }
 
   public playSheepBaa(x: number, y: number, z: number) {
@@ -666,31 +716,103 @@ class SoundscapeEngine {
     osc.stop(t + 0.75);
   }
 
-  // Gentle meditative ambient chords (OFF by default)
+  // Soft, Peaceful Procedural Countryside Instrumental Music
+  // Warm acoustic guitar fingerpicking arpeggios + gentle piano chords + pastoral pad
   private startAmbientMusic() {
-    if (!this.ctx || !this.musicGain) return;
-    this.stopAmbientMusic();
+    if (!this.ctx || !this.musicGain || this.isMusicPlaying) return;
+    this.isMusicPlaying = true;
 
-    const chordFreqs = [146.83, 220.0, 261.63, 329.63, 440.0]; // D minor 9 / peaceful pastoral drone
-    chordFreqs.forEach((freq) => {
+    // Peaceful Pastoral Chords (G major 9 -> C add 9 -> E minor 9 -> D add 9)
+    const chords = [
+      { bass: 98.0, pad: [196.0, 246.94, 293.66, 369.99], arpeggios: [196.0, 246.94, 293.66, 369.99, 440.0, 369.99, 293.66, 246.94] },
+      { bass: 130.81, pad: [164.81, 196.0, 293.66, 329.63], arpeggios: [164.81, 196.0, 261.63, 293.66, 329.63, 293.66, 196.0, 164.81] },
+      { bass: 82.41, pad: [164.81, 196.0, 246.94, 293.66], arpeggios: [164.81, 196.0, 246.94, 293.66, 369.99, 293.66, 246.94, 196.0] },
+      { bass: 146.83, pad: [220.0, 293.66, 329.63, 369.99], arpeggios: [146.83, 220.0, 293.66, 329.63, 369.99, 329.63, 293.66, 220.0] },
+    ];
+
+    let chordIndex = 0;
+
+    const playAcousticPluck = (freq: number, time: number, vol = 0.035) => {
       if (!this.ctx || !this.musicGain) return;
       const osc = this.ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, time);
+
+      // Warm acoustic body filter
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1400, time);
+      filter.frequency.exponentialRampToValueAtTime(350, time + 1.2);
 
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.001, this.ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.04, this.ctx.currentTime + 3.0);
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.linearRampToValueAtTime(vol, time + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 1.4);
 
-      osc.connect(gain);
+      osc.connect(filter);
+      filter.connect(gain);
       gain.connect(this.musicGain);
-      osc.start();
 
-      this.musicOscillators.push({ osc, gain });
-    });
+      osc.start(time);
+      osc.stop(time + 1.5);
+    };
+
+    const playChordStep = () => {
+      if (!this.ctx || !this.musicGain || !this.isMusicPlaying) return;
+      const t = this.ctx.currentTime;
+      const chord = chords[chordIndex];
+      chordIndex = (chordIndex + 1) % chords.length;
+
+      // 1. Soft warm bass note
+      playAcousticPluck(chord.bass, t + 0.05, 0.045);
+
+      // 2. Pastoral pad swells
+      chord.pad.forEach((freq) => {
+        if (!this.ctx || !this.musicGain) return;
+        const padOsc = this.ctx.createOscillator();
+        padOsc.type = 'sine';
+        padOsc.frequency.setValueAtTime(freq, t);
+
+        const padFilter = this.ctx.createBiquadFilter();
+        padFilter.type = 'lowpass';
+        padFilter.frequency.setValueAtTime(650, t);
+
+        const padGain = this.ctx.createGain();
+        padGain.gain.setValueAtTime(0.0001, t);
+        padGain.gain.linearRampToValueAtTime(0.012, t + 2.5);
+        padGain.gain.linearRampToValueAtTime(0.008, t + 6.0);
+        padGain.gain.exponentialRampToValueAtTime(0.0001, t + 8.5);
+
+        padOsc.connect(padFilter);
+        padFilter.connect(padGain);
+        padGain.connect(this.musicGain);
+
+        padOsc.start(t);
+        padOsc.stop(t + 8.8);
+      });
+
+      // 3. Gentle fingerpicked arpeggio pattern
+      const noteDelay = 0.85;
+      chord.arpeggios.forEach((noteFreq, idx) => {
+        const noteTime = t + 0.3 + idx * noteDelay;
+        playAcousticPluck(noteFreq, noteTime, 0.026 + (idx % 2 === 0 ? 0.008 : 0));
+      });
+
+      // Schedule next chord in progression (every 8 seconds)
+      const phraseDuration = 8000;
+      this.musicTimer = setTimeout(playChordStep, phraseDuration);
+    };
+
+    // Begin music smoothly after 1.5 seconds
+    this.musicTimer = setTimeout(playChordStep, 1500);
   }
 
   private stopAmbientMusic() {
+    this.isMusicPlaying = false;
+    if (this.musicTimer) {
+      clearTimeout(this.musicTimer);
+      this.musicTimer = null;
+    }
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     this.musicOscillators.forEach(({ osc, gain }) => {
@@ -704,6 +826,7 @@ class SoundscapeEngine {
 
   public dispose() {
     if (this.birdTimer) clearTimeout(this.birdTimer);
+    if (this.musicTimer) clearTimeout(this.musicTimer);
     this.stopAmbientMusic();
     if (this.ctx && this.ctx.state !== 'closed') {
       this.ctx.close();

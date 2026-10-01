@@ -22,26 +22,29 @@ function createNoisePattern(
 // 1. Lush Multi-Tonal Grass Texture (1024x1024)
 export function getGrassTexture(): THREE.CanvasTexture {
   return createNoisePattern(1024, 1024, (ctx, w, h) => {
-    ctx.fillStyle = '#344e20';
+    ctx.fillStyle = '#2f491c';
     ctx.fillRect(0, 0, w, h);
 
-    const colors = ['#3d5c24', '#2d431a', '#4a6e2c', '#547d32', '#283c18', '#385422'];
-    for (let i = 0; i < 90000; i++) {
+    const colors = ['#385a22', '#2a4016', '#466e28', '#527f2e', '#233614', '#3c5a24', '#5f8e36'];
+    for (let i = 0; i < 110000; i++) {
       ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
       const x = Math.random() * w;
       const y = Math.random() * h;
-      const len = 2.5 + Math.random() * 7;
-      ctx.fillRect(x, y, 1.6, len);
+      const len = 3 + Math.random() * 8;
+      ctx.fillRect(x, y, 1.8, len);
     }
 
-    // Micro clover & dandelion florets
-    ctx.fillStyle = '#c5d988';
-    for (let i = 0; i < 600; i++) {
-      const x = Math.random() * w;
-      const y = Math.random() * h;
-      ctx.beginPath();
-      ctx.arc(x, y, 1.4, 0, Math.PI * 2);
-      ctx.fill();
+    // Micro clover patches & dandelion florets
+    for (let i = 0; i < 1200; i++) {
+      const cx = Math.random() * w;
+      const cy = Math.random() * h;
+      ctx.fillStyle = Math.random() > 0.4 ? '#4a7526' : '#d2e482';
+      for (let p = 0; p < 3; p++) {
+        const a = (p * Math.PI * 2) / 3;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * 2.5, cy + Math.sin(a) * 2.5, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   });
 }
@@ -49,24 +52,24 @@ export function getGrassTexture(): THREE.CanvasTexture {
 // 2. Loamy Earth Dirt Carriage Road Texture (1024x1024)
 export function getDirtPathTexture(): THREE.CanvasTexture {
   return createNoisePattern(1024, 1024, (ctx, w, h) => {
-    ctx.fillStyle = '#5c4836';
+    ctx.fillStyle = '#564230';
     ctx.fillRect(0, 0, w, h);
 
-    for (let i = 0; i < 80000; i++) {
-      const shade = Math.floor(60 + Math.random() * 55);
-      const r = shade + 22;
-      const g = shade;
-      const b = Math.max(0, shade - 22);
+    for (let i = 0; i < 95000; i++) {
+      const shade = Math.floor(55 + Math.random() * 60);
+      const r = shade + 24;
+      const g = shade + 4;
+      const b = Math.max(0, shade - 20);
       ctx.fillStyle = `rgb(${r},${g},${b})`;
-      ctx.fillRect(Math.random() * w, Math.random() * h, 1.8, 1.8);
+      ctx.fillRect(Math.random() * w, Math.random() * h, 1.9, 1.9);
     }
 
     // River pebbles and grit
-    for (let i = 0; i < 1200; i++) {
+    for (let i = 0; i < 1800; i++) {
       const x = Math.random() * w;
       const y = Math.random() * h;
-      const r = 1 + Math.random() * 3.2;
-      ctx.fillStyle = Math.random() > 0.5 ? '#7a7063' : '#453a2f';
+      const r = 1.2 + Math.random() * 3.5;
+      ctx.fillStyle = Math.random() > 0.5 ? '#7f7466' : '#42372d';
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
@@ -74,44 +77,82 @@ export function getDirtPathTexture(): THREE.CanvasTexture {
   });
 }
 
-// 3. High-Quality Oak Leaf Cluster Texture (with alpha cutout)
+// 3. Ultra-Dense Volumetric Leaf Cluster Texture (1024x1024 with natural alpha cutout)
 export function getLeafClusterTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 1024;
+  canvas.height = 1024;
   const ctx = canvas.getContext('2d');
   if (ctx) {
-    ctx.clearRect(0, 0, 512, 512);
+    ctx.clearRect(0, 0, 1024, 1024);
 
-    const leafCount = 45;
+    // Branching twigs structure
+    ctx.lineWidth = 4.0;
+    ctx.strokeStyle = '#2d241c';
+    ctx.lineCap = 'round';
+    for (let b = 0; b < 16; b++) {
+      const angle = (b * Math.PI * 2) / 16 + (Math.random() - 0.5) * 0.3;
+      const len = 340 + Math.random() * 120;
+      ctx.beginPath();
+      ctx.moveTo(512, 512);
+      const midX = 512 + Math.cos(angle) * (len * 0.5) + (Math.random() - 0.5) * 60;
+      const midY = 512 + Math.sin(angle) * (len * 0.5) + (Math.random() - 0.5) * 60;
+      const endX = 512 + Math.cos(angle) * len;
+      const endY = 512 + Math.sin(angle) * len;
+      ctx.quadraticCurveTo(midX, midY, endX, endY);
+      ctx.stroke();
+    }
+
+    // 340+ organic foliage leaves with realistic depth, lobes, highlights & shadows
+    const leafCount = 360;
     for (let i = 0; i < leafCount; i++) {
-      const cx = 256 + (Math.random() - 0.5) * 320;
-      const cy = 256 + (Math.random() - 0.5) * 320;
+      const distFromCenter = Math.pow(Math.random(), 0.65) * 440;
       const angle = Math.random() * Math.PI * 2;
-      const len = 42 + Math.random() * 32;
+      const cx = 512 + Math.cos(angle) * distFromCenter;
+      const cy = 512 + Math.sin(angle) * distFromCenter;
+
+      const leafAngle = angle + (Math.random() - 0.5) * 1.5;
+      const len = 38 + Math.random() * 32;
       const width = 22 + Math.random() * 16;
 
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(angle);
+      ctx.rotate(leafAngle);
 
-      // Organic leaf shape
+      // Multi-lobed natural oak/beech leaf
       ctx.beginPath();
       ctx.moveTo(0, -len * 0.5);
-      ctx.bezierCurveTo(width, -len * 0.2, width, len * 0.3, 0, len * 0.5);
-      ctx.bezierCurveTo(-width, len * 0.3, -width, -len * 0.2, 0, -len * 0.5);
+      ctx.bezierCurveTo(width * 1.2, -len * 0.25, width * 1.1, len * 0.25, 0, len * 0.5);
+      ctx.bezierCurveTo(-width * 1.1, len * 0.25, -width * 1.2, -len * 0.25, 0, -len * 0.5);
 
-      const tone = 40 + Math.floor(Math.random() * 35);
-      ctx.fillStyle = `rgb(${tone + 10}, ${tone + 45}, ${tone - 10})`;
+      // Layered gradient coloring: sunlit tips, deep shadowy leaf bases
+      const tone = 35 + Math.floor(Math.random() * 45);
+      const isTopHighlight = Math.random() < 0.35;
+      const r = isTopHighlight ? tone + 28 : tone + 6;
+      const g = isTopHighlight ? tone + 68 : tone + 38;
+      const b = isTopHighlight ? tone - 8 : tone - 18;
+      ctx.fillStyle = `rgb(${r}, ${g}, ${Math.max(4, b)})`;
       ctx.fill();
 
-      // Vein line
-      ctx.strokeStyle = `rgba(20, 45, 10, 0.4)`;
-      ctx.lineWidth = 1.5;
+      // Leaf central vein and side ribs
+      ctx.strokeStyle = `rgba(18, 42, 10, 0.45)`;
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(0, -len * 0.45);
       ctx.lineTo(0, len * 0.45);
       ctx.stroke();
+
+      // Subtle side veins
+      for (let v = -2; v <= 2; v++) {
+        if (v === 0) continue;
+        const vy = (v / 3) * len * 0.35;
+        ctx.beginPath();
+        ctx.moveTo(0, vy);
+        ctx.lineTo(width * 0.55, vy - 6);
+        ctx.moveTo(0, vy);
+        ctx.lineTo(-width * 0.55, vy - 6);
+        ctx.stroke();
+      }
 
       ctx.restore();
     }
@@ -122,7 +163,57 @@ export function getLeafClusterTexture(): THREE.CanvasTexture {
   return texture;
 }
 
-// 4. White Paper Birch Bark Texture (512x1024)
+// 4. Grass Blade Alpha & Shading Texture (256x512)
+export function getGrassBladeTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.clearRect(0, 0, 256, 512);
+
+    // Tapering grass blade silhouette
+    ctx.beginPath();
+    ctx.moveTo(60, 512);
+    ctx.lineTo(196, 512);
+    ctx.quadraticCurveTo(170, 250, 134, 15);
+    ctx.quadraticCurveTo(128, 0, 122, 15);
+    ctx.quadraticCurveTo(86, 250, 60, 512);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(0, 512, 0, 0);
+    grad.addColorStop(0, '#2d4a18');
+    grad.addColorStop(0.3, '#3c6420');
+    grad.addColorStop(0.75, '#568b2a');
+    grad.addColorStop(1, '#94b842');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Central midrib line
+    ctx.strokeStyle = 'rgba(25, 45, 12, 0.4)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(128, 512);
+    ctx.lineTo(128, 30);
+    ctx.stroke();
+
+    // Micro vertical blade fibers
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    for (let f = 75; f < 185; f += 8) {
+      ctx.beginPath();
+      ctx.moveTo(f, 500);
+      ctx.lineTo(128 + (f - 128) * 0.15, 60);
+      ctx.stroke();
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+// 5. White Paper Birch Bark Texture (512x1024)
 export function getBirchBarkTexture(): THREE.CanvasTexture {
   return createNoisePattern(512, 1024, (ctx, w, h) => {
     ctx.fillStyle = '#e8e5dc';

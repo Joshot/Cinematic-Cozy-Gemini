@@ -58,6 +58,22 @@ export function calculateHeight(x: number, z: number): number {
     h = h * blend + targetBase * (1 - blend);
   }
 
+  // Perfectly level the Farmhouse footprint (x: -12, z: -4) so it never floats or slopes
+  const houseFootprintDist = Math.hypot(x - (-12), z - (-4));
+  if (houseFootprintDist < 14) {
+    const b = Math.min(1, Math.max(0, (houseFootprintDist - 8.5) / 5.5));
+    const smoothB = b * b * (3 - 2 * b);
+    h = h * smoothB + 1.0 * (1 - smoothB);
+  }
+
+  // Perfectly level the Barn footprint (x: 28, z: 8)
+  const barnFootprintDist = Math.hypot(x - 28, z - 8);
+  if (barnFootprintDist < 20) {
+    const b = Math.min(1, Math.max(0, (barnFootprintDist - 13.0) / 7.0));
+    const smoothB = b * b * (3 - 2 * b);
+    h = h * smoothB + 1.0 * (1 - smoothB);
+  }
+
   // Organic Farm Pond Basin (around x: 35, z: -48)
   const pondDist = Math.hypot(x - 35, (z + 48) * 0.85);
   if (pondDist < 26) {

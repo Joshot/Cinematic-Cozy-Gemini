@@ -131,31 +131,70 @@ export function createAnimals(
     const bodyMesh = new THREE.Group();
     meshGroup.add(bodyMesh);
 
-    // Main Rounded Barrel Chest & Torso (Cylinder lying horizontally along Z)
-    const barrelGeom = new THREE.CylinderGeometry(0.78, 0.82, 2.5, 12);
-    barrelGeom.rotateX(Math.PI / 2);
-    barrelGeom.scale(0.92, 1.0, 1.0); // Slightly oval cross-section
-    const barrel = new THREE.Mesh(barrelGeom, coatMat);
-    barrel.position.set(0, 1.48, 0);
-    barrel.castShadow = true;
-    barrel.receiveShadow = true;
-    bodyMesh.add(barrel);
+    // 1. Organic Ribcage / Midsection
+    const ribGeom = new THREE.SphereGeometry(0.75, 12, 10);
+    ribGeom.scale(0.85, 0.95, 1.4);
+    const ribcage = new THREE.Mesh(ribGeom, coatMat);
+    ribcage.position.set(0, 1.45, 0);
+    ribcage.castShadow = true;
+    ribcage.receiveShadow = true;
+    bodyMesh.add(ribcage);
 
-    // Muscular Rear Rump / Haunches
-    const rumpGeom = new THREE.SphereGeometry(0.76, 10, 8);
-    rumpGeom.scale(0.92, 0.95, 1.1);
-    const rump = new THREE.Mesh(rumpGeom, coatMat);
-    rump.position.set(0, 1.5, -1.05);
-    rump.castShadow = true;
-    bodyMesh.add(rump);
+    // 2. Hanging Belly (for dairy cow look)
+    const bellyGeom = new THREE.SphereGeometry(0.68, 10, 8);
+    bellyGeom.scale(0.9, 0.7, 1.1);
+    const belly = new THREE.Mesh(bellyGeom, coatMat);
+    belly.position.set(0, 1.15, 0.1);
+    belly.castShadow = true;
+    bodyMesh.add(belly);
 
-    // Front Shoulder Brisket
-    const shoulderGeom = new THREE.SphereGeometry(0.78, 10, 8);
-    shoulderGeom.scale(0.95, 1.02, 1.05);
+    // 3. Pronounced Hip Bones (Hooks & Pins)
+    const hipGeom = new THREE.SphereGeometry(0.72, 10, 8);
+    hipGeom.scale(0.98, 1.05, 1.15);
+    const hips = new THREE.Mesh(hipGeom, coatMat);
+    hips.position.set(0, 1.55, -1.05);
+    hips.castShadow = true;
+    bodyMesh.add(hips);
+
+    // 4. Broad Shoulders / Brisket
+    const shoulderGeom = new THREE.SphereGeometry(0.75, 10, 8);
+    shoulderGeom.scale(0.92, 1.05, 1.05);
     const shoulder = new THREE.Mesh(shoulderGeom, coatMat);
-    shoulder.position.set(0, 1.5, 1.05);
+    shoulder.position.set(0, 1.52, 1.08);
     shoulder.castShadow = true;
     bodyMesh.add(shoulder);
+
+    // 5. Swayback Spine Ridge
+    const spineGeom = new THREE.CylinderGeometry(0.15, 0.15, 2.0, 6);
+    spineGeom.rotateX(Math.PI / 2);
+    const spine = new THREE.Mesh(spineGeom, coatMat);
+    spine.position.set(0, 2.18, 0);
+    spine.castShadow = true;
+    bodyMesh.add(spine);
+
+    // Udder for realistic dairy cow anatomy
+    if (subType === 'Holstein' || subType === 'Jersey') {
+      const udder = new THREE.Mesh(
+        new THREE.SphereGeometry(0.42, 12, 10),
+        new THREE.MeshStandardMaterial({ color: 0xeebabc, roughness: 0.65 })
+      );
+      udder.scale.set(0.85, 0.8, 0.95);
+      udder.position.set(0, 0.88, -0.65);
+      udder.castShadow = true;
+      bodyMesh.add(udder);
+      
+      // Teats
+      [-0.12, 0.12].forEach((tx) => {
+        [-0.15, 0.1].forEach((tz) => {
+          const teat = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.04, 0.15, 6),
+            new THREE.MeshStandardMaterial({ color: 0xdd9a9c, roughness: 0.6 })
+          );
+          teat.position.set(tx, -0.38, tz);
+          udder.add(teat);
+        });
+      });
+    }
 
     // Neck Pivot (hinges at shoulder)
     const neckPivot = new THREE.Group();
@@ -472,18 +511,134 @@ export function createAnimals(
     return { meshGroup, bodyMesh, neckPivot, headPivot, tailPivot, legs };
   }
 
+  // 4. REALISTIC CHICKEN BUILDER
+  function buildRealisticChicken(): {
+    meshGroup: THREE.Group;
+    bodyMesh: THREE.Group;
+    neckPivot: THREE.Group;
+    headPivot: THREE.Group;
+    tailPivot: THREE.Group;
+    legs: { upper: THREE.Group; lower: THREE.Group }[];
+  } {
+    const meshGroup = new THREE.Group();
+    const bodyMesh = new THREE.Group();
+    meshGroup.add(bodyMesh);
+
+    // Plump sculpted chicken body
+    const bodyGeom = new THREE.SphereGeometry(0.26, 10, 8);
+    bodyGeom.scale(0.85, 1.0, 1.3);
+    const body = new THREE.Mesh(bodyGeom, chickenFeatherMat);
+    body.position.set(0, 0.44, 0);
+    body.castShadow = true;
+    bodyMesh.add(body);
+
+    // Folded wings
+    [-0.24, 0.24].forEach((wx, idx) => {
+      const wingGeom = new THREE.BoxGeometry(0.06, 0.24, 0.34);
+      const wing = new THREE.Mesh(wingGeom, chickenFeatherMat);
+      wing.position.set(wx, 0.45, -0.02);
+      wing.rotation.z = idx === 0 ? -0.15 : 0.15;
+      bodyMesh.add(wing);
+    });
+
+    // Neck & Head
+    const neckPivot = new THREE.Group();
+    neckPivot.position.set(0, 0.52, 0.2);
+    bodyMesh.add(neckPivot);
+
+    const neckGeom = new THREE.CylinderGeometry(0.08, 0.12, 0.24, 6);
+    neckGeom.rotateX(Math.PI / 3.8);
+    const neck = new THREE.Mesh(neckGeom, chickenFeatherMat);
+    neck.position.set(0, 0.09, 0.07);
+    neckPivot.add(neck);
+
+    const headPivot = new THREE.Group();
+    headPivot.position.set(0, 0.19, 0.13);
+    neckPivot.add(headPivot);
+
+    const headGeom = new THREE.SphereGeometry(0.1, 8, 8);
+    const head = new THREE.Mesh(headGeom, chickenFeatherMat);
+    headPivot.add(head);
+
+    // Red Comb
+    const combGeom = new THREE.BoxGeometry(0.03, 0.12, 0.15);
+    const comb = new THREE.Mesh(combGeom, chickenCombMat);
+    comb.position.set(0, 0.1, 0.01);
+    headPivot.add(comb);
+
+    // Red Wattle
+    const wattle = new THREE.Mesh(new THREE.SphereGeometry(0.04, 5, 5), chickenCombMat);
+    wattle.scale.set(0.6, 1.3, 0.8);
+    wattle.position.set(0, -0.08, 0.08);
+    headPivot.add(wattle);
+
+    // Yellow Beak
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.11, 4), chickenBeakMat);
+    beak.rotateX(Math.PI / 2);
+    beak.position.set(0, 0.01, 0.14);
+    headPivot.add(beak);
+
+    // Glossy Eyes
+    [-0.085, 0.085].forEach((ex) => {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 4, 4), eyeGlossMat);
+      eye.position.set(ex, 0.02, 0.05);
+      headPivot.add(eye);
+    });
+
+    // Fan Tail Feathers
+    const tailPivot = new THREE.Group();
+    tailPivot.position.set(0, 0.5, -0.28);
+    bodyMesh.add(tailPivot);
+
+    const tailFeather = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.32, 0.18), chickenFeatherMat);
+    tailFeather.position.set(0, 0.14, -0.06);
+    tailFeather.rotation.x = -0.5;
+    tailPivot.add(tailFeather);
+
+    // 2 legs with feet
+    const legs: { upper: THREE.Group; lower: THREE.Group }[] = [];
+    [-0.1, 0.1].forEach((lx) => {
+      const upper = new THREE.Group();
+      upper.position.set(lx, 0.35, 0);
+      meshGroup.add(upper);
+
+      const upperMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.2, 4), chickenBeakMat);
+      upperMesh.position.set(0, -0.1, 0);
+      upper.add(upperMesh);
+
+      const lower = new THREE.Group();
+      lower.position.set(0, -0.2, 0);
+      upper.add(lower);
+
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.13), chickenBeakMat);
+      foot.position.set(0, 0, 0.04);
+      lower.add(foot);
+
+      legs.push({ upper, lower });
+    });
+    // Add two references to satisfy 4-leg array
+    legs.push(legs[0]);
+    legs.push(legs[1]);
+
+    return { meshGroup, bodyMesh, neckPivot, headPivot, tailPivot, legs };
+  }
+
   // --- SPAWN ANIMALS ACROSS THE FARM ---
 
-  // 1. 8 Cows in the Expansive Eastern Meadow
+  // 1. Cows (including 2 in immediate view of player spawn in front pasture!)
   const cowConfigs = [
-    { id: 'cow-1', subType: 'Holstein', x: 28, z: 32, rot: 0.5 },
-    { id: 'cow-2', subType: 'Jersey', x: 38, z: 42, rot: -1.2 },
-    { id: 'cow-3', subType: 'Holstein', x: 22, z: 52, rot: 2.1 },
-    { id: 'cow-4', subType: 'Jersey', x: 48, z: 30, rot: 1.0 },
-    { id: 'cow-5', subType: 'Holstein', x: 35, z: 62, rot: -0.4 },
-    { id: 'cow-6', subType: 'Jersey', x: 55, z: 50, rot: 1.6 },
-    { id: 'cow-7', subType: 'Holstein', x: 42, z: 75, rot: -2.0 },
-    { id: 'cow-8', subType: 'Jersey', x: 62, z: 68, rot: 0.8 },
+    // Front pasture cows (IMMEDIATELY VISIBLE FROM SPAWN POINT)
+    { id: 'cow-front-1', subType: 'Holstein', x: 8, z: 20, rot: -0.6 },
+    { id: 'cow-front-2', subType: 'Jersey', x: 16, z: 24, rot: 1.2 },
+    // Eastern Meadow Herd
+    { id: 'cow-1', subType: 'Holstein', x: 30, z: 32, rot: 0.5 },
+    { id: 'cow-2', subType: 'Jersey', x: 40, z: 42, rot: -1.2 },
+    { id: 'cow-3', subType: 'Holstein', x: 24, z: 52, rot: 2.1 },
+    { id: 'cow-4', subType: 'Jersey', x: 50, z: 30, rot: 1.0 },
+    { id: 'cow-5', subType: 'Holstein', x: 36, z: 62, rot: -0.4 },
+    { id: 'cow-6', subType: 'Jersey', x: 56, z: 50, rot: 1.6 },
+    { id: 'cow-7', subType: 'Holstein', x: 44, z: 75, rot: -2.0 },
+    { id: 'cow-8', subType: 'Jersey', x: 64, z: 68, rot: 0.8 },
   ];
 
   cowConfigs.forEach((c) => {
@@ -625,6 +780,55 @@ export function createAnimals(
     });
   });
 
+  // 4. 6 Free-Range Chickens in Homestead Yard & Garden
+  const chickenConfigs = [
+    { id: 'chicken-1', x: -6, z: 12, rot: 0.6 },
+    { id: 'chicken-2', x: -2, z: 16, rot: -1.2 },
+    { id: 'chicken-3', x: 2, z: 10, rot: 2.3 },
+    { id: 'chicken-4', x: -8, z: 8, rot: 0.1 },
+    { id: 'chicken-5', x: 4, z: 15, rot: -0.9 },
+    { id: 'chicken-6', x: -4, z: 20, rot: 1.5 },
+  ];
+
+  chickenConfigs.forEach((chk) => {
+    const chkParts = buildRealisticChicken();
+    const y = getHeight(chk.x, chk.z);
+    chkParts.meshGroup.position.set(chk.x, y, chk.z);
+    chkParts.meshGroup.rotation.y = chk.rot;
+    group.add(chkParts.meshGroup);
+
+    const entity: AnimalEntity = {
+      id: chk.id,
+      species: 'chicken',
+      position: { x: chk.x, y, z: chk.z },
+      rotation: chk.rot,
+      targetRotation: chk.rot,
+      state: 'graze',
+      stateTimer: 0,
+      stateDuration: 3 + Math.random() * 5,
+      speed: 0.85,
+      headAngle: 0,
+      tailAngle: 0,
+      legPhase: Math.random() * Math.PI * 2,
+      soundTimer: 6 + Math.random() * 14,
+      boundingRadius: 0.5,
+    };
+
+    animalInstances.push({
+      entity,
+      meshGroup: chkParts.meshGroup,
+      bodyMesh: chkParts.bodyMesh,
+      neckPivot: chkParts.neckPivot,
+      headPivot: chkParts.headPivot,
+      tailPivot: chkParts.tailPivot,
+      legs: chkParts.legs,
+      currentGaitPhase: Math.random() * Math.PI * 2,
+      currentBodyBob: 0,
+      currentSway: 0,
+      grazingWeight: 1.0,
+    });
+  });
+
   // --- SKELETAL QUADRUPED GAIT & BEHAVIOR SIMULATION ---
   const update = (delta: number, playerPos: THREE.Vector3) => {
     animalInstances.forEach((inst) => {
@@ -642,16 +846,26 @@ export function createAnimals(
       // Spatial 3D vocalization
       if (e.soundTimer <= 0) {
         const distToPlayer = Math.hypot(e.position.x - playerPos.x, e.position.z - playerPos.z);
-        if (distToPlayer < 55) {
+        if (distToPlayer < 85) {
           if (e.species === 'cow') {
             soundscape.playCowMoo(e.position.x, e.position.y, e.position.z);
+            e.soundTimer = 16 + Math.random() * 32;
           } else if (e.species === 'sheep') {
             soundscape.playSheepBaa(e.position.x, e.position.y, e.position.z);
+            e.soundTimer = 14 + Math.random() * 28;
           } else if (e.species === 'goat') {
             soundscape.playGoatBleat(e.position.x, e.position.y, e.position.z);
+            e.soundTimer = 16 + Math.random() * 32;
+          } else if (e.species === 'chicken') {
+            soundscape.playChickenCluck(e.position.x, e.position.y, e.position.z);
+            e.soundTimer = 7 + Math.random() * 15;
+          } else {
+            e.soundTimer = 15 + Math.random() * 20;
           }
+        } else {
+          // If too far away, just reset the timer quietly
+          e.soundTimer = 15 + Math.random() * 20;
         }
-        e.soundTimer = 18 + Math.random() * 36;
       }
 
       // State transitions with smooth interpolation
@@ -662,28 +876,25 @@ export function createAnimals(
         if (e.state === 'walk') {
           if (rand < 0.55) {
             e.state = 'graze';
-            e.stateDuration = 9 + Math.random() * 15;
+            e.stateDuration = 7 + Math.random() * 12;
           } else if (rand < 0.85) {
             e.state = 'idle';
-            e.stateDuration = 5 + Math.random() * 8;
+            e.stateDuration = 4 + Math.random() * 7;
           } else {
             e.state = 'lookAround';
-            e.stateDuration = 4 + Math.random() * 6;
+            e.stateDuration = 3 + Math.random() * 5;
           }
         } else {
-          if (rand < 0.42) {
+          if (rand < 0.45) {
             e.state = 'walk';
-            e.stateDuration = 6 + Math.random() * 10;
+            e.stateDuration = 5 + Math.random() * 8;
             e.targetRotation = e.rotation + (Math.random() - 0.5) * 1.8;
-          } else if (rand < 0.78) {
+          } else if (rand < 0.8) {
             e.state = 'graze';
-            e.stateDuration = 8 + Math.random() * 14;
-          } else if (rand < 0.92) {
-            e.state = 'lookAround';
-            e.stateDuration = 4 + Math.random() * 6;
+            e.stateDuration = 6 + Math.random() * 12;
           } else {
-            e.state = 'rest';
-            e.stateDuration = 12 + Math.random() * 18;
+            e.state = 'lookAround';
+            e.stateDuration = 3 + Math.random() * 5;
           }
         }
       }
@@ -692,13 +903,13 @@ export function createAnimals(
       let rotDiff = e.targetRotation - e.rotation;
       while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
       while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-      e.rotation += rotDiff * Math.min(1, delta * 2.0);
+      e.rotation += rotDiff * Math.min(1, delta * 2.2);
 
       // Smooth Grazing Neck Interpolation (0 = up, 1 = lowered to grass)
       const targetGrazing = e.state === 'graze' ? 1.0 : 0.0;
-      inst.grazingWeight = THREE.MathUtils.lerp(inst.grazingWeight, targetGrazing, delta * 1.8);
+      inst.grazingWeight = THREE.MathUtils.lerp(inst.grazingWeight, targetGrazing, delta * 2.2);
 
-      // Perform Quadruped Walking Gait
+      // Perform Walking Gait
       const isWalking = e.state === 'walk' && !e.isPetted;
 
       if (isWalking) {
@@ -711,11 +922,14 @@ export function createAnimals(
 
         let allowMove = true;
         if (e.species === 'cow') {
-          if (nextX < 16 || nextX > 75 || nextZ < 18 || nextZ > 85) allowMove = false;
+          // Both front pasture and eastern meadow roaming bounds
+          if (nextX < 4 || nextX > 75 || nextZ < 10 || nextZ > 85) allowMove = false;
         } else if (e.species === 'goat') {
           if (nextX > -40 || nextX < -85 || nextZ < 5 || nextZ > 50) allowMove = false;
         } else if (e.species === 'sheep') {
           if (nextX > -25 || nextX < -75 || nextZ > -75 || nextZ < -135) allowMove = false;
+        } else if (e.species === 'chicken') {
+          if (nextX < -15 || nextX > 18 || nextZ < -5 || nextZ > 32) allowMove = false;
         }
 
         if (allowMove) {
@@ -727,38 +941,39 @@ export function createAnimals(
           e.stateTimer = 0;
         }
 
-        // Realistic Quadruped Diagonal Gait Cycle
-        inst.currentGaitPhase += delta * e.speed * 4.6;
+        inst.currentGaitPhase += delta * e.speed * (e.species === 'chicken' ? 7.5 : 4.6);
         const p = inst.currentGaitPhase;
 
-        // Front-Left & Back-Right diagonal pair
-        const swing1 = Math.sin(p);
-        // Front-Right & Back-Left diagonal pair (180 deg out of phase)
-        const swing2 = Math.sin(p + Math.PI);
+        if (e.species === 'chicken') {
+          // Bipedal quick steps
+          inst.legs[0].upper.rotation.x = Math.sin(p) * 0.55;
+          inst.legs[1].upper.rotation.x = Math.sin(p + Math.PI) * 0.55;
+          inst.neckPivot.rotation.x = Math.sin(p * 2) * 0.22;
+        } else {
+          // Quadruped diagonal gait
+          const swing1 = Math.sin(p);
+          const swing2 = Math.sin(p + Math.PI);
 
-        // Legs: [FL, FR, BL, BR]
-        inst.legs[0].upper.rotation.x = swing1 * 0.38;
-        inst.legs[0].lower.rotation.x = Math.max(0, -swing1) * 0.42;
+          inst.legs[0].upper.rotation.x = swing1 * 0.38;
+          inst.legs[0].lower.rotation.x = Math.max(0, -swing1) * 0.42;
 
-        inst.legs[1].upper.rotation.x = swing2 * 0.38;
-        inst.legs[1].lower.rotation.x = Math.max(0, -swing2) * 0.42;
+          inst.legs[1].upper.rotation.x = swing2 * 0.38;
+          inst.legs[1].lower.rotation.x = Math.max(0, -swing2) * 0.42;
 
-        inst.legs[2].upper.rotation.x = swing2 * 0.35;
-        inst.legs[2].lower.rotation.x = Math.max(0, swing2) * 0.38;
+          inst.legs[2].upper.rotation.x = swing2 * 0.35;
+          inst.legs[2].lower.rotation.x = Math.max(0, swing2) * 0.38;
 
-        inst.legs[3].upper.rotation.x = swing1 * 0.35;
-        inst.legs[3].lower.rotation.x = Math.max(0, swing1) * 0.38;
+          inst.legs[3].upper.rotation.x = swing1 * 0.35;
+          inst.legs[3].lower.rotation.x = Math.max(0, swing1) * 0.38;
 
-        // Body Vertical Bobbing (2 bobs per full 4-leg cycle)
-        inst.currentBodyBob = Math.abs(Math.sin(p)) * 0.045;
-        // Body Lateral Sway & Roll
-        inst.currentSway = Math.sin(p) * 0.025;
+          inst.currentBodyBob = Math.abs(Math.sin(p)) * 0.045;
+          inst.currentSway = Math.sin(p) * 0.025;
 
-        inst.bodyMesh.position.y = inst.currentBodyBob;
-        inst.bodyMesh.rotation.z = inst.currentSway;
-        inst.bodyMesh.rotation.y = inst.currentSway * 0.4;
+          inst.bodyMesh.position.y = inst.currentBodyBob;
+          inst.bodyMesh.rotation.z = inst.currentSway;
+          inst.bodyMesh.rotation.y = inst.currentSway * 0.4;
+        }
       } else {
-        // Return legs smoothly to neutral standing stance
         inst.legs.forEach((l) => {
           l.upper.rotation.x = THREE.MathUtils.lerp(l.upper.rotation.x, 0, delta * 4);
           l.lower.rotation.x = THREE.MathUtils.lerp(l.lower.rotation.x, 0, delta * 4);
@@ -769,22 +984,27 @@ export function createAnimals(
       }
 
       // Smooth Neck & Head Grazing Animation
-      const chew = e.state === 'graze' ? Math.sin(e.stateTimer * 4.2) * 0.04 : 0;
-      const neckAngle = THREE.MathUtils.lerp(-0.15, -0.72, inst.grazingWeight);
-      const headAngle = THREE.MathUtils.lerp(-0.1, -0.35 + chew, inst.grazingWeight);
-
-      inst.neckPivot.rotation.x = neckAngle;
-      inst.headPivot.rotation.x = headAngle;
-
-      if (e.state === 'lookAround') {
-        inst.neckPivot.rotation.y = Math.sin(e.stateTimer * 1.4) * 0.35;
+      if (e.species === 'chicken') {
+        const peck = e.state === 'graze' ? -0.85 + Math.sin(e.stateTimer * 9) * 0.22 : 0.05;
+        inst.neckPivot.rotation.x = THREE.MathUtils.lerp(inst.neckPivot.rotation.x, peck, delta * 8);
       } else {
-        inst.neckPivot.rotation.y = THREE.MathUtils.lerp(inst.neckPivot.rotation.y, 0, delta * 3);
-      }
+        const chew = e.state === 'graze' ? Math.sin(e.stateTimer * 4.2) * 0.04 : 0;
+        const neckAngle = THREE.MathUtils.lerp(-0.15, -0.72, inst.grazingWeight);
+        const headAngle = THREE.MathUtils.lerp(-0.1, -0.35 + chew, inst.grazingWeight);
 
-      // Organic tail swishing
-      inst.tailPivot.rotation.z = Math.sin(e.stateTimer * 3.2) * 0.32;
-      inst.tailPivot.rotation.x = Math.sin(e.stateTimer * 1.6) * 0.12;
+        inst.neckPivot.rotation.x = neckAngle;
+        inst.headPivot.rotation.x = headAngle;
+
+        if (e.state === 'lookAround') {
+          inst.neckPivot.rotation.y = Math.sin(e.stateTimer * 1.4) * 0.35;
+        } else {
+          inst.neckPivot.rotation.y = THREE.MathUtils.lerp(inst.neckPivot.rotation.y, 0, delta * 3);
+        }
+
+        // Organic tail swishing
+        inst.tailPivot.rotation.z = Math.sin(e.stateTimer * 3.2) * 0.32;
+        inst.tailPivot.rotation.x = Math.sin(e.stateTimer * 1.6) * 0.12;
+      }
 
       // Update position on terrain height
       e.position.y = getHeight(e.position.x, e.position.z);
