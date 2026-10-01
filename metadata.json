@@ -1,0 +1,6 @@
+{
+  "name": "Pastoral: Countryside Farm Exploration",
+  "description": "A photorealistic, peaceful first-person countryside farm exploration simulation featuring realistic atmospheric lighting, wind-reactive vegetation, free-roaming farm animals, and immersive spatial nature audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

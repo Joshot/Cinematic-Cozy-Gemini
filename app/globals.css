@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #09090b;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+canvas {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
